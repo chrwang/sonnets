@@ -23,8 +23,7 @@ def read_text(path):
                     tmp = []
                 else:
                     # Lower case and strip punctuation, strip newlines
-                    l = line.lower().translate(str.maketrans("", "", '''!"#$%&()*+,./:;<=>?@[\]^_`{|}~''')).rstrip(
-                        "\n")
+                    l = line.lower().translate(str.maketrans("", "", '''!"#$%&()*+,./:;<=>?@[\]^_`{|}~'''))
                     if len(l) != 0:
                         tmp.append(l)
     result.append(tmp)
