@@ -5,6 +5,7 @@ from keras.callbacks import ModelCheckpoint
 from preprocess import read_text
 import time
 
+
 def build_data(path, max_len, skip):
     text_array = read_text(path)
     sentences = []
@@ -27,7 +28,7 @@ def build_data(path, max_len, skip):
         for t, char in enumerate(sentence):
             x[i, t, char_indices[char]] = 1
         y[i, char_indices[next_chars[i]]] = 1
-    return x, y
+    return x, y, char_indices, indices_char
 
 
 def build_model(input_shape, lstm_size=200, temperature=1):
@@ -42,7 +43,7 @@ def build_model(input_shape, lstm_size=200, temperature=1):
 if __name__ == "__main__":
     filepath = "weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
     checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=1, save_best_only=True, mode='min')
-    X, Y = build_data("data/shakespeare.txt", 40, 3)
+    X, Y, _, _ = build_data("data/shakespeare.txt", 40, 3)
     m = build_model((40, len(X[0][0])), temperature=1)
     m.fit(X, Y, 64, 150, callbacks=[checkpoint])
     m.save("m_final_"+str(time.time()))
