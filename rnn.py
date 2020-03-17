@@ -1,7 +1,8 @@
 import numpy as np
-from keras.layers import Dense, LSTM, Lambda
-from keras.models import Sequential
-from keras.callbacks import ModelCheckpoint
+import tensorflow as tf
+from tensorflow.keras.layers import Dense, LSTM, Lambda
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.callbacks import ModelCheckpoint
 from preprocess import read_text
 import time
 
@@ -41,10 +42,11 @@ def build_model(input_shape, lstm_size=200, temperature=1):
 
 
 if __name__ == "__main__":
-    filepath = "weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
+    filepath = "checkpoints/weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
     checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=1, save_best_only=True, mode='min')
     X, Y, _, _ = build_data("data/shakespeare.txt", 40, 3)
     m = build_model((40, len(X[0][0])), temperature=1)
+    print("Fitting model...")
     m.fit(X, Y, 64, 150, callbacks=[checkpoint])
     m.save("m_final_"+str(time.time()))
 

@@ -1,14 +1,14 @@
 import numpy as np
-from keras.layers import Dense, LSTM, Lambda
-from keras.models import load_model
-from keras.callbacks import ModelCheckpoint
-from keras.utils import to_categorical
+from tensorflow.keras.layers import Dense, LSTM, Lambda
+from tensorflow.keras.models import load_model
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.utils import to_categorical
 from keras_preprocessing.sequence import pad_sequences
 
 from rnn import build_data
 
 _, _,ctoi,  itoc = build_data("data/shakespeare.txt", 40, 3)
-model = load_model("weights-improvement-89-0.0021.hdf5")
+model = load_model("trained_checkpoints/weights-improvement-68-0.0014.hdf5")
 
 seed = "shall i compare thee to a summer's day\n"
 
