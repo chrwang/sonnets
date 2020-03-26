@@ -6,8 +6,15 @@ from tensorflow.keras.callbacks import ModelCheckpoint
 from preprocess import read_text
 import time
 
-
 def build_data(path, max_len, skip):
+    """
+    Build a dataset to use for training. Adapted from the Keras RNN training examples.
+
+    :param: path: The path to the text file to read.
+    :param: max_len: The maximal length of a single sequence.
+    :param: skip: The number of characters to skip in between sequences.
+    :return: A 4-tuple of (x, y, characters to ints, ints to characters).
+    """
     text_array = read_text(path)
     sentences = []
     next_chars = []
@@ -33,9 +40,21 @@ def build_data(path, max_len, skip):
 
 
 def build_model(input_shape, lstm_size=200, temperature=1):
+    """
+    Build a RNN model.
+
+    :param: input_shape: A 2-tuple that describes the shape of X
+    :param: lstm_size: The size of the lstm layer.
+    :param: temperature: The lambda temperature to use during inference. Should be set to one for training.
+    :return: The constructed model.
+    """
+    # Init model
     model = Sequential()
+    # LSTM layer
     model.add(LSTM(lstm_size, input_shape=input_shape))
+    # Dense output layer
     model.add(Dense(input_shape[1], activation='softmax'))
+    # Lambda layer
     model.add(Lambda(lambda x: x / temperature))
     model.compile(loss='categorical_crossentropy', optimizer='adam')
     return model
