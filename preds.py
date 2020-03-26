@@ -19,6 +19,7 @@ for t in [0.25, 0.75, 1.5]:
     model = build_model((40, len(X[0][0])), temperature=t)
     # Get trained weights
     model.set_weights(trained_model.get_weights())
+    print(model.summary())
     print("500 character prediction for temperature {}.".format(t))
     # Predict 500 Characters
     for _ in range(500):

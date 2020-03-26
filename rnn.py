@@ -1,6 +1,6 @@
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.layers import Dense, LSTM, Lambda
+from tensorflow.keras.layers import Dense, LSTM, Lambda, Softmax
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.callbacks import ModelCheckpoint
 from preprocess import read_text
@@ -53,9 +53,10 @@ def build_model(input_shape, lstm_size=200, temperature=1):
     # LSTM layer
     model.add(LSTM(lstm_size, input_shape=input_shape))
     # Dense output layer
-    model.add(Dense(input_shape[1], activation='softmax'))
+    model.add(Dense(input_shape[1]))
     # Lambda layer
     model.add(Lambda(lambda x: x / temperature))
+    model.add(Softmax())
     model.compile(loss='categorical_crossentropy', optimizer='adam')
     return model
 
