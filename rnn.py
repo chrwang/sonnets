@@ -1,52 +1,109 @@
 import numpy as np
+import matplotlib.pyplot as plt
 import tensorflow as tf
-from tensorflow.keras.layers import Dense, LSTM, Lambda
-from tensorflow.keras.models import Sequential
+from tensorflow.keras.models import load_model
+from tensorflow.keras.layers import Dense, LSTM, Lambda, Input, Concatenate, Reshape, Dropout
+from tensorflow.keras.models import Model, Sequential
 from tensorflow.keras.callbacks import ModelCheckpoint
-from preprocess import read_text
+from preprocess import build_chars
 import time
 
 
-def build_data(path, max_len, skip):
-    text_array = read_text(path)
-    sentences = []
-    next_chars = []
-    for sonnet in text_array:
-        text = "".join(line for line in sonnet)
-        for i in range(0, len(text) - max_len, skip):
-            sentences.append(text[i: i + max_len])
-            next_chars.append(text[i + max_len])
-        print('nb sequences:', len(sentences))
+def build_model(input_shape, lstm_size=200, char_window=1, temperature=1):
+    inputs = Input(shape=input_shape)
+    ref = inputs
+    outputs = []
+    for w in range(char_window):
+        if w is 0:
+            x = inputs
+        else:
+            x = Reshape(target_shape=(1, input_shape[1]))(outputs[w-1])
+            ref = x = Concatenate(axis=1)([ref, x])
+        x = LSTM(lstm_size, input_shape=(input_shape[0]+w, input_shape[1]))(x)
+        x = Dense(100, activation="relu")(x)
+        x = Dense(input_shape[1], activation='softmax')(x)
+        x = Lambda(lambda a: a / temperature, name="c{0}_output".format(w+1))(x)
+        outputs.append(x)
 
-    chars = sorted(list(set("".join(s for s in sentences))))
-    char_indices = dict((c, i) for i, c in enumerate(chars))
-    indices_char = dict((i, c) for i, c in enumerate(chars))
-
-    print('Vectorization...')
-    x = np.zeros((len(sentences), max_len, len(chars)), dtype=np.bool)
-    y = np.zeros((len(sentences), len(chars)), dtype=np.bool)
-    for i, sentence in enumerate(sentences):
-        for t, char in enumerate(sentence):
-            x[i, t, char_indices[char]] = 1
-        y[i, char_indices[next_chars[i]]] = 1
-    return x, y, char_indices, indices_char
+    model = Model(inputs=inputs, outputs=outputs)
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=["accuracy"])
+    return model
 
 
-def build_model(input_shape, lstm_size=200, temperature=1):
-    model = Sequential()
-    model.add(LSTM(lstm_size, input_shape=input_shape))
-    model.add(Dense(input_shape[1], activation='softmax'))
-    model.add(Lambda(lambda x: x / temperature))
-    model.compile(loss='categorical_crossentropy', optimizer='adam')
+def build_model_1(input_shape, lstm_size=300, char_window=1, temperature=1):
+    inputs = Input(shape=input_shape)
+    outputs = []
+
+    ref = inputs
+    rec = LSTM(lstm_size)
+    for w in range(char_window):
+        if w is 0:
+            x = inputs
+        else:
+            x = Reshape(target_shape=(1, input_shape[1]))(outputs[w-1])
+            ref = x = Concatenate(axis=1)([ref, x])
+        x = rec(x)
+        x = Dense(100, activation="relu")(x)
+        x = Dense(input_shape[1], activation='softmax')(x)
+        x = Lambda(lambda a: a / temperature, name="c{0}_output".format(w+1))(x)
+        outputs.append(x)
+
+    model = Model(inputs=inputs, outputs=outputs)
+    model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=["accuracy"])
     return model
 
 
 if __name__ == "__main__":
+    WINDOW_SIZE = 5
     filepath = "checkpoints/weights-improvement-{epoch:02d}-{loss:.4f}.hdf5"
     checkpoint = ModelCheckpoint(filepath, monitor='loss', verbose=1, save_best_only=True, mode='min')
-    X, Y, _, _ = build_data("data/shakespeare.txt", 40, 3)
-    m = build_model((40, len(X[0][0])), temperature=1)
+    X, Y, _, _ = build_chars("data/shakespeare.txt", 40, 3, char_window=WINDOW_SIZE)
+    m = build_model((40, len(X[0][0])), temperature=1, char_window=WINDOW_SIZE)
+    # m = load_model("weights-improvement-14-40.8626.hdf5")
     print("Fitting model...")
-    m.fit(X, Y, 64, 150, callbacks=[checkpoint])
-    m.save("m_final_"+str(time.time()))
+    hist = m.fit(X, Y, 64, 100, callbacks=[checkpoint])
+    name = "m_final_window{0}_{1}".format(WINDOW_SIZE, time.time())
+    print("Saving to: {0}...".format(name))
+    m.save(name)
 
+    # Plotting
+    if True:
+        names = []
+        for w in range(WINDOW_SIZE):
+            names.append("c{0}_output".format(w+1))
+
+        # Plot total loss values
+        plt.plot(hist.history['loss'])
+        plt.title('Model loss (total)')
+        plt.ylabel('Loss')
+        plt.xlabel('Epoch')
+        plt.savefig("{0}/assets/loss_total.png".format(name))
+        plt.show()
+
+        # Plot individual loss values
+        for n in names:
+            plt.plot(hist.history['{0}_loss'.format(n)])
+        plt.title('Model loss (individual)')
+        plt.ylabel('Loss')
+        plt.xlabel('Epoch')
+        plt.legend(names, loc='best')
+        plt.savefig("{0}/assets/loss_ind.png".format(name))
+        plt.show()
+
+        # Plot training & validation accuracy values
+        for n in names:
+            plt.plot(hist.history['{0}_accuracy'.format(n)])
+        plt.title('Model accuracy (individual)')
+        plt.ylabel('Accuracy')
+        plt.xlabel('Epoch')
+        plt.legend(names, loc='best')
+        plt.savefig("{0}/assets/accuracy_ind.png".format(name))
+        plt.show()
+
+        # Plot first character accuracy values
+        plt.plot(hist.history['{0}_accuracy'.format(names[0])])
+        plt.title('Model accuracy (first char)')
+        plt.ylabel('Accuracy')
+        plt.xlabel('Epoch')
+        plt.savefig("{0}/assets/accuracy_first.png".format(name))
+        plt.show()
